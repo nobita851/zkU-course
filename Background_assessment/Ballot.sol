@@ -7,6 +7,8 @@ pragma solidity >=0.7.0 <0.9.0;
  * @dev Implements voting process along with vote delegation
  */
 contract Ballot {
+
+    uint256 public startTime; // state variable to store start-time of voting
    
     struct Voter {
         uint weight; // weight is accumulated by delegation
@@ -45,13 +47,15 @@ contract Ballot {
                 voteCount: 0
             }));
         }
+
+        startTime = block.timestamp; // storing the time at which the contract gets deployed
     }
     
     /** 
      * @dev Give 'voter' the right to vote on this ballot. May only be called by 'chairperson'.
      * @param voter address of voter
      */
-    function giveRightToVote(address voter) public{
+    function giveRightToVote(address voter) public voteEnded{
         require(
             msg.sender == chairperson,
             "Only chairperson can give right to vote."
@@ -68,7 +72,7 @@ contract Ballot {
      * @dev Delegate your vote to the voter 'to'.
      * @param to address to which vote is delegated
      */
-    function delegate(address to) public{
+    function delegate(address to) public voteEnded{
         Voter storage sender = voters[msg.sender];
         require(!sender.voted, "You already voted.");
         require(to != msg.sender, "Self-delegation is disallowed.");
@@ -97,7 +101,7 @@ contract Ballot {
      * @dev Give your vote (including votes delegated to you) to proposal 'proposals[proposal].name'.
      * @param proposal index of proposal in the proposals array
      */
-    function vote(uint proposal) public{
+    function vote(uint proposal) public voteEnded{
         Voter storage sender = voters[msg.sender];
         require(sender.weight != 0, "Has no right to vote");
         require(!sender.voted, "Already voted.");
@@ -134,5 +138,12 @@ contract Ballot {
             returns (bytes32 winnerName_)
     {
         winnerName_ = proposals[winningProposal()].name;
+    }
+
+    // modifier to keep track of time
+    modifier voteEnded() {
+        // 5 minutes = 5 * 60 seconds
+        require (block.timestamp <= startTime + 5*60, "Voting Period has ended");
+        _;
     }
 }
